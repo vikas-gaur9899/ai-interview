@@ -5,13 +5,18 @@ import dotenv from "dotenv";
 dotenv.config();
 
 /* ====================================================
-   TRANSPORT
+   SMTP TRANSPORT
+   FIXED FOR RENDER PRODUCTION
 ==================================================== */
 
 const transporter =
   nodemailer.createTransport({
 
-    service: "gmail",
+    host: "smtp.gmail.com",
+
+    port: 587,
+
+    secure: false,
 
     auth: {
 
@@ -21,9 +26,38 @@ const transporter =
       pass:
         process.env.MAIL_PASS
 
+    },
+
+    tls: {
+
+      rejectUnauthorized: false
+
     }
 
   });
+
+/* ====================================================
+   VERIFY SMTP CONNECTION
+==================================================== */
+
+transporter.verify((error) => {
+
+  if (error) {
+
+    console.log(
+      "❌ SMTP ERROR:",
+      error
+    );
+
+  } else {
+
+    console.log(
+      "✅ SMTP SERVER READY"
+    );
+
+  }
+
+});
 
 /* ====================================================
    SEND REPORT EMAIL
@@ -43,6 +77,25 @@ export const sendReportEmail =
   ) => {
 
     try {
+
+      /* ====================================================
+         EXTRACT TOKEN
+      ==================================================== */
+
+      let token = "";
+
+      const tokenMatch =
+        customText?.match(
+          /Token:\s*(.*)/i
+        );
+
+      if (tokenMatch) {
+
+        token =
+          tokenMatch[1]
+            ?.trim();
+
+      }
 
       /* ====================================================
          REPORT EMAIL HTML
@@ -95,7 +148,7 @@ export const sendReportEmail =
       </ul>
 
       <p>
-        You can download your complete interview report using the button below.
+        Click below to download your interview report.
       </p>
 
       <!-- BUTTON -->
@@ -195,7 +248,52 @@ export const sendReportEmail =
 
       </div>
 
-      <p>
+      ${
+        token
+          ? `
+      <!-- TOKEN BOX -->
+
+      <div style="background:#eef4ff; border:1px solid #d6e4ff; padding:20px; border-radius:10px; margin-top:25px; text-align:center;">
+
+        <p style="margin-bottom:10px; font-weight:bold; color:#0A2540;">
+          Interview Access Token
+        </p>
+
+        <div style="
+          background:white;
+          padding:14px;
+          border-radius:8px;
+          border:1px dashed #0A2540;
+          font-size:18px;
+          font-weight:bold;
+          letter-spacing:2px;
+          color:#0A2540;
+          margin-bottom:15px;
+        ">
+          ${token}
+        </div>
+
+        <button
+          onclick="navigator.clipboard.writeText('${token}')"
+          style="
+            background:#0A2540;
+            color:white;
+            border:none;
+            padding:12px 20px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:bold;
+          "
+        >
+          Copy Token
+        </button>
+
+      </div>
+      `
+          : ""
+      }
+
+      <p style="margin-top:30px;">
         Please ensure:
       </p>
 
@@ -204,6 +302,7 @@ export const sendReportEmail =
         <li>Quiet environment</li>
         <li>Microphone access enabled</li>
         <li>Fullscreen mode during interview</li>
+        <li>Use Google Chrome for best experience</li>
       </ul>
 
       <p>
