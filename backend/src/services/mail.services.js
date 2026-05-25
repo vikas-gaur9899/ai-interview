@@ -14,9 +14,9 @@ const transporter =
 
     host: "smtp.gmail.com",
 
-    port: 587,
+    port: 465,
 
-    secure: false,
+    secure: true,
 
     auth: {
 
