@@ -1,31 +1,15 @@
-import nodemailer from "nodemailer";
+import { BrevoClient } from "@getbrevo/brevo";
 import dotenv from "dotenv";
-
 dotenv.config();
 
 /* ====================================================
-   BREVO SMTP TRANSPORT
+   BREVO CLIENT
 ==================================================== */
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: "ac710e001@smtp-brevo.com",  // ✅ FIXED: hardcoded Brevo SMTP login
-    pass: process.env.BREVO_PASS       // ✅ your SMTP key from .env
-  }
+const brevo = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY
 });
 
-/* ====================================================
-   VERIFY SMTP CONNECTION
-==================================================== */
-transporter.verify((error) => {
-  if (error) {
-    console.log("❌ SMTP ERROR:", error);
-  } else {
-    console.log("✅ BREVO SMTP SERVER READY");
-  }
-});
+console.log("✅ BREVO API READY");
 
 /* ====================================================
    SEND REPORT EMAIL
@@ -37,19 +21,10 @@ export const sendReportEmail = async (
   studentName = "Candidate"
 ) => {
   try {
-
-    /* ====================================================
-       EXTRACT TOKEN
-    ==================================================== */
     let token = "";
     const tokenMatch = customText?.match(/Token:\s*(.*)/i);
-    if (tokenMatch) {
-      token = tokenMatch[1]?.trim();
-    }
+    if (tokenMatch) token = tokenMatch[1]?.trim();
 
-    /* ====================================================
-       REPORT EMAIL HTML
-    ==================================================== */
     const reportHTML = `
 <div style="font-family: Arial, sans-serif; background: #f4f7fb; padding: 30px;">
   <div style="max-width: 700px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.08);">
@@ -60,7 +35,7 @@ export const sendReportEmail = async (
     <div style="padding: 35px; color: #333; line-height: 1.7;">
       <h2 style="margin-top:0;">Hello ${studentName},</h2>
       <p>Thank you for attending your AI Interview session with <strong>e-Definers Technologies</strong>.</p>
-      <p>Your interview evaluation has been completed successfully. The report contains a detailed AI-based analysis of your:</p>
+      <p>Your interview evaluation has been completed. The report contains AI-based analysis of your:</p>
       <ul>
         <li>Technical Knowledge</li>
         <li>Communication Skills</li>
@@ -74,7 +49,6 @@ export const sendReportEmail = async (
           Download Interview Report
         </a>
       </div>
-      <p>We appreciate your participation and encourage you to continue improving your skills through consistent learning and practice.</p>
       <p>We wish you great success in your future career journey.</p>
       <br/>
       <p>Best Regards,<br/><strong>e-Definers Technologies</strong><br/>AI Interview Platform Team</p>
@@ -85,9 +59,6 @@ export const sendReportEmail = async (
   </div>
 </div>`;
 
-    /* ====================================================
-       SCHEDULE EMAIL HTML
-    ==================================================== */
     const scheduleHTML = `
 <div style="font-family: Arial, sans-serif; background: #f4f7fb; padding: 30px;">
   <div style="max-width: 700px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.08);">
@@ -104,7 +75,7 @@ export const sendReportEmail = async (
       ${token ? `
       <div style="background:#eef4ff; border:1px solid #d6e4ff; padding:20px; border-radius:10px; margin-top:25px; text-align:center;">
         <p style="margin-bottom:10px; font-weight:bold; color:#0A2540;">Interview Access Token</p>
-        <div style="background:white;padding:14px;border-radius:8px;border:1px dashed #0A2540;font-size:18px;font-weight:bold;letter-spacing:2px;color:#0A2540;margin-bottom:15px;">
+        <div style="background:white;padding:14px;border-radius:8px;border:1px dashed #0A2540;font-size:18px;font-weight:bold;letter-spacing:2px;color:#0A2540;">
           ${token}
         </div>
       </div>` : ""}
@@ -127,22 +98,21 @@ export const sendReportEmail = async (
 </div>`;
 
     /* ====================================================
-       MAIL OPTIONS
+       SEND EMAIL VIA BREVO API v6
     ==================================================== */
-    const mailOptions = {
-      from: `"e-Definers Technologies" <samratsh097@gmail.com>`, // ✅ FIXED: verified sender email
-      to,
+    const result = await brevo.transactionalEmails.sendTransacEmail({
+      sender: {
+        name: "e-Definers Technologies",
+        email: "samratsh097@gmail.com"  // ✅ verified sender
+      },
+      to: [{ email: to }],
       subject: pdfPath
         ? "Your AI Interview Report – e-Definers Technologies"
         : "AI Interview Scheduled – e-Definers Technologies",
-      html: pdfPath ? reportHTML : scheduleHTML
-    };
+      htmlContent: pdfPath ? reportHTML : scheduleHTML
+    });
 
-    /* ====================================================
-       SEND MAIL
-    ==================================================== */
-    await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent to:", to);
+    console.log("✅ Email sent to:", to, "| Message ID:", result.messageId);
 
   } catch (err) {
     console.error("❌ Email error:", err);
